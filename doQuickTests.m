@@ -8,11 +8,11 @@
 Screen('Preference', 'SkipSyncTests', 1);   
 
 
-
+ 
 quickTest()
 function quickTest()
 % Clear the workspace
-clo se al nl;
+close all;
 clearvars;
 sca;
 cleanob = onCleanup(@() mycleanup);
@@ -76,8 +76,10 @@ DrawFormattedText(window,['Press ''SPACEBAR'' to continue.'],...
 Screen('Flip', window);
 pause(0.2)
 [~,keycode,~] = KbWait;
+WaitSecs(0.1)
 while ~keycode(KbName('space'))
   [~,keycode,~] = KbWait;
+  WaitSecs(0.1)
 end
 
 % show example cards
@@ -107,8 +109,10 @@ DrawFormattedText(window,['Press ''SPACEBAR'' to continue.'],...
 Screen('Flip', window);
 pause(0.2)
 [~,keycode,~] = KbWait;
+WaitSecs(0.1)
 while ~keycode(KbName('space'))
   [~,keycode,~] = KbWait;
+  WaitSecs(0.1)
 end
 
 % dark purple
@@ -126,8 +130,10 @@ DrawFormattedText(window,['Press ''SPACEBAR'' to continue.'],...
 Screen('Flip', window);
 pause(0.2)
 [~,keycode,~] = KbWait;
+WaitSecs(0.1)
 while ~keycode(KbName('space'))
   [~,keycode,~] = KbWait;
+  WaitSecs(0.1)
 end
 
 
@@ -161,6 +167,7 @@ WaitSecs(0.08);
 while true  
   WaitSecs(0.08);
   [~,keycode,~] = KbWait;
+  WaitSecs(0.1)
   if keycode(KbName('escape')) 
     return
   end
@@ -217,6 +224,7 @@ WaitSecs(0.08);
 while true
   WaitSecs(0.08);
   [~,keycode,~] = KbWait;
+  WaitSecs(0.1);
   if keycode(KbName('escape')) 
     return
   end
