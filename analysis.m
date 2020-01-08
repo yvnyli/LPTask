@@ -3,12 +3,12 @@
 %  1st/2nd n and acc of 1st/2nd est,
 %  1st/2nd n and var of 1st/2nd est, 
 %  2nd-1st n and magnitude of delta est, 
-%  delta est and H(true p),
+%  magnitude of delta est and H(true p),
 %  magnitude of delta est and sign of delta H(est)
 %% simulate n trials for a grid of p values with combos of 1st and 2nd obs
 rng(0);
 pgrid = 0.05:0.05:0.95;
-nsims = 20;
+nsims = 150;
 nsamples = [3,5,7,9];
 observations = NaN(numel(pgrid),nsims,numel(nsamples),numel(nsamples),2*max(nsamples));
 trajectories = NaN(numel(pgrid),nsims,numel(nsamples),numel(nsamples),2);
@@ -92,7 +92,11 @@ title('variance of bayesian est by number of obs (second)');
 
 %% 2nd-1st n and magnitude of delta est
 figure;
-deltaest = squeeze(abs(trajectories(:,:,:,:,2)-trajectories(:,:,:,:,1)));
+% should i sqrt to make it more gaussian?
+%  wikipedia says "If the sample size is large and the population is not 
+%  normal, then the sample correlation coefficient remains approximately 
+%  unbiased, but may not be efficient.
+deltaest = squeeze((abs(trajectories(:,:,:,:,2)-trajectories(:,:,:,:,1))));
 n2m1 = NaN(size(deltaest));
 for indp = 1:numel(pgrid)
   for inds = 1:nsims
@@ -105,3 +109,61 @@ for indp = 1:numel(pgrid)
 end
 boxplot(deltaest(:),n2m1(:));
 title('abs change in estimate by 2nd n - 1st n')
+% figure;
+% subplot(3,1,1);normplot(deltaest(:));title('deltaest');
+% subplot(3,1,2);normplot(sqrt(deltaest(:)));title('sqrt');
+% subplot(3,1,3);normplot(log(deltaest(:)+0.01));title('log+0.01');
+% deltaest = deltaest(:); n2m1 = n2m1(:);
+% [r,p] = corr(deltaest(deltaest>0),n2m1(deltaest>0))
+%% magnitude of delta est and H(true p)
+figure;
+deltaest = squeeze(abs(trajectories(:,:,:,:,2)-trajectories(:,:,:,:,1)));
+hp = NaN(size(deltaest));
+truep = NaN(size(hp));
+for indp = 1:numel(pgrid)
+  p = pgrid(indp);
+  hp(indp,:,:,:) = repmat(-log(p)*p-log(1-p)*(1-p),1,size(hp,2),size(hp,3),size(hp,4));
+  truep(indp,:,:,:) = repmat(p,1,size(truep,2),size(truep,3),size(truep,4));
+end
+mdl = fitlm(hp(:),deltaest(:),'varnames',{'entropy_of_true_p','abs_change_in_estimate'})
+plot(mdl);
+
+figure;
+for ind1 = 1:4
+  for ind2 = 1:4
+    subplot(4,4,ind2+(ind1-1)*4);
+    deltaest = squeeze(trajectories(:,:,ind1,ind2,2)-trajectories(:,:,ind1,ind2,1));
+    hp = NaN(size(deltaest));
+    for indp = 1:numel(pgrid)
+      p = pgrid(indp);
+      hp(indp,:) = repmat(-log(p)*p-log(1-p)*(1-p),1,size(hp,2));
+%       deltaest(indp,:) = (deltaest(indp,:) - mean(deltaest(indp,:),'all')) ./ std(deltaest(indp,:),0,'all');
+    end
+    mdl = fitlm(hp(:),abs(deltaest(:)),'varnames',{'entropy_of_true_p','abs_change_in_estimate'});
+    plot(mdl);legend('off');
+    title([num2str(nsamples(ind1)) ' then ' num2str(nsamples(ind2)) ', b=',...
+      num2str(mdl.Coefficients.Estimate(2)),', p=',num2str(mdl.Coefficients.pValue(2))]);
+  end
+end
+
+
+%% magnitude of delta est and sign of delta H(est)
+figure;
+deltaest = squeeze((trajectories(:,:,:,:,2)-trajectories(:,:,:,:,1)));
+deltah = NaN(size(deltaest));
+for indp = 1:numel(pgrid)
+  for inds = 1:nsims
+    for ind1 = 1:numel(nsamples)
+      for ind2 = 1:numel(nsamples)
+        e1 = trajectories(indp,inds,ind1,ind2,1);
+        e1 = max(min(e1,0.99),0.01);
+        e2 = trajectories(indp,inds,ind1,ind2,2);
+        e1 = max(min(e1,0.99),0.01);
+        deltah(indp,inds,ind1,ind2) = (-log(e2)*e2-log(1-e2)*(1-e2)) - ...
+          (-log(e1)*e1-log(1-e1)*(1-e1));
+      end
+    end
+  end
+end
+mdl = fitlm(deltah(:),deltaest(:),'varnames',{'change_in_entropy','abs_change_in_estimate'});
+plot(mdl);legend('off');
