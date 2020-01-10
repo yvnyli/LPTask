@@ -3,7 +3,7 @@
 
  
  
-testCardAppearDisappear();
+testMakeSlider();
 
 
 
@@ -286,7 +286,15 @@ s.card_width = s.winw/5;
 s.animation_time = 0.5;
 s.text_color = 0.1*s.white;
 s.slider_len = s.winw/4;
-s.slider_thickness = 10 / 1440 * s.winh;
+s.slider_thickness = s.slider_len / 512;
+s.slider_w = s.slider_len / 100;
+s.slider_h = s.slider_w * 5;
+s.slider_text_size = 24 / 2560 * s.winw;
+s.text_dummy_box = [0 0 100 100];
+s.slider_color = 0.2*s.white;
+s.slider_color_active = [0.9*s.white s.black s.black];
+s.hold_on_list = {};
+s.sliders = [];
 end
 
 function s = makeBoxOfCards(s, front_center)
@@ -351,9 +359,7 @@ card_alphas = linspace(0,1,num_frames);
 imt = Screen('MakeTexture', s.window, im);
 for indf = 1:num_frames
   
-  for indh = 1:numel(s.hold_on_list)
-    eval(s.hold_on_list{indh});
-  end
+  drawHoldOn(s);
   im_rect_pos = CenterRectOnPointd([0 0 card_widths(indf) card_heights(indf)],...
     card_centers(indf,1),card_centers(indf,2));
 %   Screen('PutImage', s.window, im, im_rect_pos);
@@ -376,25 +382,61 @@ card_alphas = linspace(0,1,num_frames);
 imt = Screen('MakeTexture', s.window, im);
 for indfr = 1:num_frames
   indf = num_frames+1-indfr;
-  for indh = 1:numel(s.hold_on_list)
-    eval(s.hold_on_list{indh});
-  end
+  drawHoldOn(s);
   im_rect_pos = CenterRectOnPointd([0 0 card_widths(indf) card_heights(indf)],...
     card_centers(indf,1),card_centers(indf,2));
 %   Screen('PutImage', s.window, im, im_rect_pos);
   Screen('DrawTexture', s.window, imt, [], im_rect_pos,[],[], card_alphas(indf));
   Screen('Flip', s.window);
 end
-for indh = 1:numel(s.hold_on_list)
-  eval(s.hold_on_list{indh});
-end
+drawHoldOn(s);
 Screen('Flip', s.window);
 end
 
-function s = makeSlider(s, y, left_text, right_text, value)
+function [s,sind] = initSlider(s,y,left_text,right_text,value,prompt_text,numbered)
+sl.y = y; sl.left_text = left_text; sl.right_text = right_text;
+sl.value = value; sl.prompt_text = prompt_text; sl.numbered = numbered;
+s.sliders = [s.sliders, sl];
+sind = numel(s.sliders);
+end
+
+function s = makeSlider(s, sind)
+slider_bar = [0 0 s.slider_len, s.slider_thickness];
+slider_bar_pos = CenterRectOnPointd(slider_bar, s.xc, s.sliders(sind).y);
+Screen('FillRect', s.window, s.slider_color, slider_bar_pos);
+text_dummy_box_left = CenterRectOnPointd(s.text_dummy_box,...
+  slider_bar_pos(1),slider_bar_pos(2)+s.text_dummy_box(4)/2);
+text_dummy_box_right = CenterRectOnPointd(s.text_dummy_box,...
+  slider_bar_pos(3),slider_bar_pos(2)+s.text_dummy_box(4)/2);
+text_dummy_box_mid = CenterRectOnPointd(s.text_dummy_box,...
+  s.xc,slider_bar_pos(2)-s.text_dummy_box(4));
+oldTextSize = Screen('TextSize',s.window,s.slider_text_size);
+DrawFormattedText(s.window, s.sliders(sind).left_text, 'center', 'center', ...
+  s.text_color, [], [], [], [], [], text_dummy_box_left);
+DrawFormattedText(s.window, s.sliders(sind).right_text, 'center', 'center', ...
+  s.text_color, [], [], [], [], [], text_dummy_box_right);
+DrawFormattedText(s.window, s.sliders(sind).prompt_text, 'center', 'center', ...
+  s.text_color, [], [], [], [], [], text_dummy_box_mid);
+if s.sliders(sind).numbered
+  text_dummy_box_mid(2) = slider_bar_pos(2)-s.text_dummy_box(4)/2;
+  DrawFormattedText(s.window, num2str(s.sliders(sind).value), 'center', 'center', ...
+    s.text_color, [], [], [], [], [], text_dummy_box_mid);
+end
+Screen('TextSize',s.window,oldTextSize);
+tick_pos = CenterRectOnPointd([0 0 s.slider_w, s.slider_h], ...
+  slider_bar_pos(1) + s.slider_len * s.sliders(sind).value / 100, s.sliders(sind).y);
+Screen('FillRect', s.window, s.slider_color, tick_pos);
+end
+
+function s = activateSlider(s, sind)
 
 end
 
+function drawHoldOn(s)
+for indh = 1:numel(s.hold_on_list)
+  eval(s.hold_on_list{indh});
+end
+end
 
 
 function testBoxOfCards()
@@ -502,6 +544,43 @@ s = cardAppear(s, imread('./iris1.jpg'));
 pause(0.2)
 KbWait();
 pause(0.1)
+
+s = cardDisappear(s,imread('./iris1.jpg'));
+pause(0.2)
+KbWait();
+pause(0.1)
+
+end
+function testMakeSlider()
+cleanob = onCleanup(@() mycleanup);
+% Here we call some default settings for setting up Psychtoolbox
+PsychDefaultSetup(2);
+
+s = struct;
+
+s = makeGreyBackground(s);
+
+s = initParams(s);
+
+
+s = makeBoxOfCards(s,[s.winw/6, s.winh/3]);
+s = drawBoxOfCards(s);
+s.hold_on_list = [s.hold_on_list, {'s = drawBoxOfCards(s);'}];
+Screen('Flip', s.window);
+
+pause(1)
+
+drawHoldOn(s);
+[s,sind] = initSlider(s,1000,'not at all','completely',42,'How confident are you?',true);
+s = makeSlider(s,sind);
+s.hold_on_list = [s.hold_on_list, {['s = makeSlider(s,', num2str(sind),');']}];
+Screen('Flip', s.window);
+
+pause(1)
+
+s = cardAppear(s, imread('./iris1.jpg'));
+
+pause(1)
 
 s = cardDisappear(s,imread('./iris1.jpg'));
 pause(0.2)
