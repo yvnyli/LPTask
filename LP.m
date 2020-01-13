@@ -3,7 +3,7 @@
 
  
  
-testActivateSlider();
+testTrySlider();
 
 
 
@@ -26,11 +26,16 @@ s = makeGreyBackground(s);
 
 s = initParams(s);
 
+% practice
+
+
+
 
 s = makeBoxOfCards(s,[s.winw/6, s.winh/3]);
 
 % s = drawBoxOfCards(s);
-% s.hold_on_list = [s.hold_on_list, {'s = drawBoxOfCards(s)'}];
+% s = addHoldOn(s,'s = drawBoxOfCards(s);');
+
 
 % What's in the box
 dummyBox = [0 0 10 10];
@@ -248,8 +253,76 @@ ub = tickind;
 
 end
 
+function s = practice(s)
+end
+
+function s = trySlider(s)
+
+[s,sind] = initSlider(s,s.winh*2/3,'0','100',50,...
+  'Please drag the slider to 100.',1,@returnDown);
+
+'TODO: fix the oversized texts and make a function that takes in arguments to
+'  "DrawFormattedText" and a text size and adds it to hold on
+
+
+
+textbox = CenterRectOnPointd([0 0 100 100],s.xc,s.winh/3);
+[s,cind1] = addHoldOn(s,...
+  ['DrawFormattedText(s.window, ''When the slider is red, it is active ',...
+  'and you can change its value with the mouse.'',',...
+  '''center'', ''center'', s.text_color, [], [], [], [], [], ',...
+  sprintf('[%.2f,%.2f,%.2f,%.2f]',textbox),');'],[]);
+
+[s,cind2] = addHoldOn(s,...
+  ['DrawFormattedText(s.window, ''Press ENTER to confirm your response.'',',...
+  '''center'', ''center'', s.text_color, [], [], [], [], [], ',...
+  sprintf('[%.2f,%.2f,%.2f,%.2f]',s.bottom_text_box),');'],[]);
+
+oldTextSize = Screen('TextSize',s.window,s.text_size);
+
+[s,cind3] = addHoldOn(s,['makeSlider(s,',num2str(sind),');'],[]);
+s = activateSlider(s,sind);
+
+Screen('TextSize',s.window,oldTextSize);
+
+s = deleteHoldOn(s,cind2); s = deleteHoldOn(s,cind1); cind3 = cind3-2;
+
+DrawFormattedText(s.window,'Once you confirm your response, the slider can''t be changed.',...
+  'center','center',s.text_color,[],[],[],[],[],textbox);
+DrawFormattedText(s.window,'Press SPACEBAR to continue.','center','center',...
+  s.text_color,[],[],[],[],[],s.bottom_text_box);
+drawHoldOn(s);
+Screen('Flip',s.window);
+
+s = deleteHoldOn(s,cind3); 
+while 1
+  if spaceDown()
+    break;
+  end
+end
+
+end
+
+
+
+
+
+
+
+
+
+
 function mycleanup()
 sca;
+ListenChar(0);
+end
+
+function RestrictKeysPlus(enablekeys)
+if isempty(enablekeys)
+  RestrictKeysForKbCheck(enablekeys);
+else
+  RestrictKeysForKbCheck(unique([162,163, enablekeys]));
+end
 end
 
 function s = makeGreyBackground(s)
@@ -283,6 +356,9 @@ Screen('BlendFunction', s.window, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
 end
 
 function s = initParams(s)
+s.big_text_size = 48 / 2560 * s.winw;
+s.bottom_text_size = 36 / 2560 * s.winw;
+
 s.card_width = s.winw/5;
 s.animation_time = 0.5;
 s.text_color = 0.1*s.white;
@@ -293,10 +369,13 @@ s.slider_w = s.slider_len / 100;
 s.slider_h = s.slider_w * 5;
 s.slider_text_size = 24 / 2560 * s.winw;
 s.text_dummy_box = [0 0 100 100];
+s.bottom_text_box = CenterRectOnPointd([0 0 100 100],s.xc,s.winh*7/8);
 s.slider_color = 0.2*s.white;
 s.slider_color_active = [0.9*s.white s.black s.black];
 s.hold_on_list = {};
 s.sliders = [];
+
+
 end
 
 function s = makeBoxOfCards(s, front_center)
@@ -395,11 +474,17 @@ drawHoldOn(s);
 Screen('Flip', s.window);
 end
 
-function [s,sind] = initSlider(s,y,left_text,right_text,value,prompt_text,numbered)
+function [s,sind] = initSlider(s,y,left_text,right_text,value,...
+  prompt_text,numbered,stoppingFunc)
 sl.y = y; sl.left_text = left_text; sl.right_text = right_text;
 sl.value = value; sl.prompt_text = prompt_text; sl.numbered = numbered;
+sl.stoppingFunc = stoppingFunc;
 s.sliders = [s.sliders, sl];
 sind = numel(s.sliders);
+end
+
+function s = deleteSlider(s,sind)
+s.sliders(sind) = [];
 end
 
 function s = makeSlider(s, sind)
@@ -439,10 +524,10 @@ slider_area = CenterRectOnPointd([0 0 s.slider_len s.slider_h], s.xc, s.sliders(
 vbl = Screen('Flip', s.window);
 holding = false;
 while 1
-  [~,~,keycode,~] = KbCheck();
-  if keycode(KbName('Return'))
+  if s.sliders(sind).stoppingFunc()
     break;
   end
+
   [mx,my,buttons] = GetMouse(s.window);
   inside = IsInRect(mx,my,slider_area);
   holding = holding && any(buttons); % if buttons are not pressed, end holding status
@@ -475,11 +560,50 @@ drawHoldOn(s);
 Screen('Flip', s.window);
 end
 
+function tf = returnDown()
+[~,~,keycode,~] = KbCheck();
+tf =  keycode(KbName('Return'));
+end
+
+function tf = spaceDown()
+[~,~,keycode,~] = KbCheck();
+tf =  keycode(KbName('space'));
+end
+
+function tf = downArrowDown()
+[~,~,keycode,~] = KbCheck();
+tf =  keycode(KbName('downarrow'));
+end
+
+function tf = upArrowDown()
+[~,~,keycode,~] = KbCheck();
+tf =  keycode(KbName('uparrow'));
+end
+
+function [s,cind] = addHoldOn(s,command,afterwhich)
+if isempty(afterwhich) || afterwhich>=numel(s.hold_on_list)
+  s.hold_on_list = [s.hold_on_list, {command}];
+  cind = numel(s.hold_on_list);
+else
+  s.hold_on_list = [s.hold_on_list(1:afterwhich),{command},s.hold_on_list((afterwhich+1):end)];
+  cind = afterwhich + 1;
+end
+end
+
 function drawHoldOn(s)
 for indh = 1:numel(s.hold_on_list)
   eval(s.hold_on_list{indh});
 end
 end
+
+function s = deleteHoldOn(s,cind)
+s.hold_on_list(cind) = [];
+end
+
+
+
+
+
 
 
 function testBoxOfCards()
@@ -665,4 +789,32 @@ s = activateSlider(s,sind);
 pause(0.1);
 KbWait();
 pause(0.1);
+end
+function testRestrictKeysPlus()
+% after ListenChar(2), one Ctrl+C cancels suppression and another kills
+% program
+ListenChar(2)
+for ind = 1:20
+  disp(ind);
+  pause(1)
+  if ind == 3
+    RestrictKeysPlus([32]);
+  end
+end
+ListenChar(0)
+end
+function testTrySlider()
+cleanob = onCleanup(@() mycleanup);
+% Here we call some default settings for setting up Psychtoolbox
+PsychDefaultSetup(2);
+KbName('UnifyKeyNames');
+
+s = struct;
+
+s = makeGreyBackground(s);
+
+s = initParams(s);
+
+s = trySlider(s);
+pause(0.1);KbWait();
 end
