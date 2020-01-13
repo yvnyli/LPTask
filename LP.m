@@ -3,7 +3,7 @@
 
  
  
-testMakeSlider();
+testActivateSlider();
 
 
 
@@ -18,6 +18,7 @@ sca;
 cleanob = onCleanup(@() mycleanup);
 % Here we call some default settings for setting up Psychtoolbox
 PsychDefaultSetup(2);
+KbName('UnifyKeyNames');
 
 s = struct;
 
@@ -285,6 +286,7 @@ function s = initParams(s)
 s.card_width = s.winw/5;
 s.animation_time = 0.5;
 s.text_color = 0.1*s.white;
+s.text_color_active = 0.9*s.white;
 s.slider_len = s.winw/4;
 s.slider_thickness = s.slider_len / 512;
 s.slider_w = s.slider_len / 100;
@@ -429,7 +431,48 @@ Screen('FillRect', s.window, s.slider_color, tick_pos);
 end
 
 function s = activateSlider(s, sind)
+% 1. click on the slider scale: slider jumps to position
+% 2. hold and drag
+slider_bar = [0 0 s.slider_len, s.slider_thickness];
+slider_bar_pos = CenterRectOnPointd(slider_bar, s.xc, s.sliders(sind).y);
+slider_area = CenterRectOnPointd([0 0 s.slider_len s.slider_h], s.xc, s.sliders(sind).y);
+vbl = Screen('Flip', s.window);
+holding = false;
+while 1
+  [~,~,keycode,~] = KbCheck();
+  if keycode(KbName('Return'))
+    break;
+  end
+  [mx,my,buttons] = GetMouse(s.window);
+  inside = IsInRect(mx,my,slider_area);
+  holding = holding && any(buttons); % if buttons are not pressed, end holding status
+  if (inside && any(buttons)) || holding
+    s.sliders(sind).value = min(max(round((mx - slider_bar_pos(1))/s.slider_len*100),0),100);
+   end
+  if ~holding
+    % to start the "holding" status, mouse must be inside the scale area
+    holding = any(buttons) && inside;
+  end
+  drawHoldOn(s);
+  tick_pos = CenterRectOnPointd([0 0 s.slider_w, s.slider_h], ...
+    slider_bar_pos(1) + s.slider_len * s.sliders(sind).value / 100, s.sliders(sind).y);
+  Screen('FillRect', s.window, s.slider_color_active, tick_pos);
+  text_dummy_box_mid = CenterRectOnPointd(s.text_dummy_box,...
+    s.xc,slider_bar_pos(2)-s.text_dummy_box(4));
+  oldTextSize = Screen('TextSize',s.window,s.slider_text_size);
+  DrawFormattedText(s.window, s.sliders(sind).prompt_text, 'center', 'center', ...
+    s.text_color_active, [], [], [], [], [], text_dummy_box_mid);
+  if s.sliders(sind).numbered
+    text_dummy_box_mid(2) = slider_bar_pos(2)-s.text_dummy_box(4)/2;
+    DrawFormattedText(s.window, num2str(s.sliders(sind).value), 'center', 'center', ...
+      s.text_color_active, [], [], [], [], [], text_dummy_box_mid);
+  end
+  Screen('TextSize',s.window,oldTextSize);
 
+  vbl  = Screen('Flip', s.window, vbl + (1 - 0.5) * s.ifi);
+end
+drawHoldOn(s);
+Screen('Flip', s.window);
 end
 
 function drawHoldOn(s)
@@ -587,4 +630,39 @@ pause(0.2)
 KbWait();
 pause(0.1)
 
+end
+function testActivateSlider()
+cleanob = onCleanup(@() mycleanup);
+% Here we call some default settings for setting up Psychtoolbox
+PsychDefaultSetup(2);
+KbName('UnifyKeyNames');
+
+s = struct;
+
+s = makeGreyBackground(s);
+
+s = initParams(s);
+
+
+s = makeBoxOfCards(s,[s.winw/6, s.winh/3]);
+s = drawBoxOfCards(s);
+s.hold_on_list = [s.hold_on_list, {'s = drawBoxOfCards(s);'}];
+Screen('Flip', s.window);
+
+pause(1)
+
+drawHoldOn(s);
+[s,sind] = initSlider(s,1000,'not at all','completely',42,'How confident are you?',true);
+s = makeSlider(s,sind);
+s.hold_on_list = [s.hold_on_list, {['s = makeSlider(s,', num2str(sind),');']}];
+Screen('Flip', s.window);
+
+pause(0.1)
+KbWait();
+
+s = activateSlider(s,sind);
+
+pause(0.1);
+KbWait();
+pause(0.1);
 end
