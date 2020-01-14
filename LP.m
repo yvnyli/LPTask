@@ -1,5 +1,5 @@
 % for my mac
-%Screen('Preference', 'SkipSyncTests', 1);   
+% Screen('Preference', 'SkipSyncTests', 1);   
 
  
  
@@ -261,46 +261,47 @@ function s = trySlider(s)
 [s,sind] = initSlider(s,s.winh*2/3,'0','100',50,...
   'Please drag the slider to 100.',1,@returnDown);
 
-'TODO: fix the oversized texts and make a function that takes in arguments to
-'  "DrawFormattedText" and a text size and adds it to hold on
-
-
-
 textbox = CenterRectOnPointd([0 0 100 100],s.xc,s.winh/3);
-[s,cind1] = addHoldOn(s,...
-  ['DrawFormattedText(s.window, ''When the slider is red, it is active ',...
-  'and you can change its value with the mouse.'',',...
-  '''center'', ''center'', s.text_color, [], [], [], [], [], ',...
-  sprintf('[%.2f,%.2f,%.2f,%.2f]',textbox),');'],[]);
+[s,hind1] = addTextHoldOn(s,[],s.big_text_size,s.window,...
+  'When the slider is red, it is active and you can change its value with the mouse.',...
+  'center','center',s.text_color,[],[],[],[],[],textbox);
 
-[s,cind2] = addHoldOn(s,...
-  ['DrawFormattedText(s.window, ''Press ENTER to confirm your response.'',',...
-  '''center'', ''center'', s.text_color, [], [], [], [], [], ',...
-  sprintf('[%.2f,%.2f,%.2f,%.2f]',s.bottom_text_box),');'],[]);
+[s,hind2] = addTextHoldOn(s,[],s.bottom_text_size,s.window,...
+  'Press ENTER to confirm your response.',...
+  'center','center',s.text_color,[],[],[],[],[],s.bottom_text_box);
 
-oldTextSize = Screen('TextSize',s.window,s.text_size);
-
-[s,cind3] = addHoldOn(s,['makeSlider(s,',num2str(sind),');'],[]);
+[s,hind3] = addSliderHoldOn(s,sind,[]);
 s = activateSlider(s,sind);
 
-Screen('TextSize',s.window,oldTextSize);
+s = deleteHoldOn(s,hind2); s = deleteHoldOn(s,hind1); hind3 = hind3-2;
 
-s = deleteHoldOn(s,cind2); s = deleteHoldOn(s,cind1); cind3 = cind3-2;
-
-DrawFormattedText(s.window,'Once you confirm your response, the slider can''t be changed.',...
+DrawFormattedTextPlus(s.big_text_size,s.window,...
+  'Once you confirm your response, the slider can''t be changed.',...
   'center','center',s.text_color,[],[],[],[],[],textbox);
-DrawFormattedText(s.window,'Press SPACEBAR to continue.','center','center',...
-  s.text_color,[],[],[],[],[],s.bottom_text_box);
+DrawFormattedTextPlus(s.bottom_text_size,s.window,...
+  'Press SPACEBAR to continue.',...
+  'center','center',s.text_color,[],[],[],[],[],s.bottom_text_box);
+
 drawHoldOn(s);
 Screen('Flip',s.window);
 
-s = deleteHoldOn(s,cind3); 
+s = deleteHoldOn(s,hind3); 
 while 1
   if spaceDown()
     break;
   end
 end
+s = deleteSlider(s,sind);
+end
 
+function s = runTrial(s,isPractice)
+%TODO
+
+if isPractice
+  % sample 2+2
+else
+  % sample 
+end
 end
 
 
@@ -315,6 +316,12 @@ end
 function mycleanup()
 sca;
 ListenChar(0);
+end
+
+function defaultSetup()
+PsychDefaultSetup(2);
+KbName('UnifyKeyNames');
+ListenChar(2);
 end
 
 function RestrictKeysPlus(enablekeys)
@@ -356,7 +363,7 @@ Screen('BlendFunction', s.window, 'GL_SRC_ALPHA', 'GL_ONE_MINUS_SRC_ALPHA');
 end
 
 function s = initParams(s)
-s.big_text_size = 48 / 2560 * s.winw;
+s.big_text_size = 36  / 2560 * s.winw;
 s.bottom_text_size = 36 / 2560 * s.winw;
 
 s.card_width = s.winw/5;
@@ -367,7 +374,7 @@ s.slider_len = s.winw/4;
 s.slider_thickness = s.slider_len / 512;
 s.slider_w = s.slider_len / 100;
 s.slider_h = s.slider_w * 5;
-s.slider_text_size = 24 / 2560 * s.winw;
+s.slider_text_size = 36 / 2560 * s.winw;
 s.text_dummy_box = [0 0 100 100];
 s.bottom_text_box = CenterRectOnPointd([0 0 100 100],s.xc,s.winh*7/8);
 s.slider_color = 0.2*s.white;
@@ -580,14 +587,63 @@ function tf = upArrowDown()
 tf =  keycode(KbName('uparrow'));
 end
 
-function [s,cind] = addHoldOn(s,command,afterwhich)
+function [s,hind] = addHoldOn(s,command,afterwhich)
 if isempty(afterwhich) || afterwhich>=numel(s.hold_on_list)
   s.hold_on_list = [s.hold_on_list, {command}];
-  cind = numel(s.hold_on_list);
+  hind = numel(s.hold_on_list);
 else
   s.hold_on_list = [s.hold_on_list(1:afterwhich),{command},s.hold_on_list((afterwhich+1):end)];
-  cind = afterwhich + 1;
+  hind = afterwhich + 1;
 end
+end
+
+function [s,hind] = addTextHoldOn(s,afterwhich,textsize,...
+  ~,tstring,sx,sy,color,wrapat,fH,fV,vS,rtl,winRect)
+if isempty(sx)
+  sxtext = '[]';
+elseif isnumeric(sx)
+  sxtext = num2str(sx);
+else
+  sxtext = ['''',sx,''''];
+end
+if isempty(sy)
+  sytext = '[]';
+elseif isnumeric(sy)
+  sytext = num2str(sy);
+else
+  sytext = ['''',sy,''''];
+end
+if isempty(fH)
+  fH = 0;
+end
+if isempty(fV)
+  fV = 0;
+end
+if isempty(vS)
+  vS = 1;
+end
+if isempty(rtl)
+  rtl = 0;
+end
+color = color(:)'; winRect = winRect(:)';
+dft = ...
+  sprintf('DrawFormattedText(s.window,''%s'',%s,%s,[%s],[%s],%d,%d,%d,%d,[%s]);',...
+  tstring,sxtext,sytext,num2str(color),num2str(wrapat),fH,fV,vS,rtl,num2str(winRect));
+change_size = ...
+  sprintf('oldTextSize = Screen(''TextSize'',s.window,%.2f);',textsize);
+change_back = 'Screen(''TextSize'',s.window,oldTextSize);';
+[s,hind] = addHoldOn(s,[change_size,dft,change_back],afterwhich);
+end
+
+function DrawFormattedTextPlus(textsize,...
+  win,tstring,sx,sy,color,wrapat,fH,fV,vS,rtl,winRect)
+oldTextSize = Screen('TextSize',win,textsize);
+DrawFormattedText(win,tstring,sx,sy,color,wrapat,fH,fV,vS,rtl,winRect);
+Screen('TextSize',win,oldTextSize);
+end
+
+function [s,hind] = addSliderHoldOn(s,sind,afterwhich)
+[s,hind] = addHoldOn(s,['makeSlider(s,',num2str(sind),');'],afterwhich);
 end
 
 function drawHoldOn(s)
@@ -596,8 +652,8 @@ for indh = 1:numel(s.hold_on_list)
 end
 end
 
-function s = deleteHoldOn(s,cind)
-s.hold_on_list(cind) = [];
+function s = deleteHoldOn(s,hind)
+s.hold_on_list(hind) = [];
 end
 
 
@@ -805,10 +861,7 @@ ListenChar(0)
 end
 function testTrySlider()
 cleanob = onCleanup(@() mycleanup);
-% Here we call some default settings for setting up Psychtoolbox
-PsychDefaultSetup(2);
-KbName('UnifyKeyNames');
-
+defaultSetup();
 s = struct;
 
 s = makeGreyBackground(s);
