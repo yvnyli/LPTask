@@ -1,4 +1,32 @@
 %%
+
+% how to distangle the parameters ("model recovery"): simulate exp, suppose
+% the agent generates the response (boredom) with a certain combination of
+% the parameters (see google doc), fit the full regression model and see if
+% the coefficients match the predetermined combination
+
+% want a range for each of the parameters
+
+% please look at the google doc
+
+% surprise is a function of confidence1 and change in estimate
+%   in the model, it can maybe be the overlap of the distribution of the
+%   estimate based on the first samples and the distribution of the estimate
+%   based on the second samples (think hypothesis testing, confidence interval etc)
+
+% bin abs(delta estimate) as conditions (say three) and have the same
+% number of trials in each
+% have all the combinations of n's ([3 6 9])
+% and have these be kind of independent
+
+% play with the true p but hey its not a regressor and nobody cares
+% but i still want to do the analysis where i generate a bunch of sampling
+% sequences and select them according to the conditions and see whether
+% they look more like sequences from a distribution with a different p
+% or that they look more like sequences from a volatile env
+
+
+%%
 % correlations: 
 %  1st/2nd n and acc of 1st/2nd est,
 %  1st/2nd n and var of 1st/2nd est, 
