@@ -12,35 +12,18 @@
 %          dEstimate, liking, n1, n2, est1, conf1, entropy1, dentropy
 
 % surprise is a function of confidence1 and change in estimate
-%   in the model, it can maybe be the overlap of the distribution of the
-%   estimate based on the first samples and the distribution of the estimate
-%   based on the second samples (think hypothesis testing, confidence interval etc)
-
-% OK, both posteriors are beta distributions, let's try to use the area of
-% overlap as a metric. max(AO) = 1 when the two are identical, min(AO) = 0
-% when the two are completely dirac deltas (doesn't matter where though)
+%   in the model, it can maybe be 1. the area of overlap between 1st and
+%   2nd posterior dist., 2. log likelihood of 2nd subround of samples
+%   based on 1st estimate, 3. 1/variance1 * absolute change in estimate
 
 
 % bin abs(delta estimate) as conditions (say three) and have the same
 % number of trials in each
-% have all the combinations of n's ([3 6 9])
+% have all the combinations of n's ([4,8])
 % and have these be kind of independent
 
-% play with the true p but hey its not a regressor and nobody cares
-% but i still want to do the analysis where i generate a bunch of sampling
-% sequences and select them according to the conditions and see whether
-% they look more like sequences from a distribution with a different p
-% or that they look more like sequences from a volatile env
 
-
-%% all possible observations (n1,n2=3,6,9) and range for each of the parameters
-
-% 3 then 3: 2^6 sequences, 4*4=16 count combinations
-% 3 then 6 or 6 then 3: 2^9 sequences, 4*7=28 count combinations
-% 3 then 9 or 9 then 3: 2^12, 4*10=40 count combinations
-% 6 then 6: 2^12, 7*7=49 count combinations
-% 6 then 9 or 9 then 6: 2^15, 7*10=70 count combinations
-% 9 then 9: 2^18, 10*10=100 count combinations
+%% all possible observations (n1,n2=4,8) and range for each of the parameters
 
 % participant parameters:
 %  initial confidence and delta confidence
@@ -60,7 +43,7 @@
 % var and ao are also of course using Bayesian estimates
 % simulation
 varNames = {'n1','n2','na1','na2','p1','adp','pp1','adpp',...
-  'var1','dvar','negao','negll2','adppxvar1'};
+  'invvar1','dinvvar','negao','negll2','adppxinvvar1'};
 tbl = table('Size',[(4+1)^2+(8+1)^2+(4+1)*(8+1)*2, numel(varNames)],...
   'VariableTypes',repmat({'double'},1,numel(varNames)),...
   'variablenames',varNames);
@@ -83,12 +66,12 @@ for n1 = ns(:)'
 %         e2 = -p2*log2(p2)-(1-p2)*log2(1-p2);
 %         if isnan(e2); e2=0; end
 %         tbl.de(trind) = e2 - tbl.e1(trind);
-        tbl.var1(trind) = ((na1+1)*(n1-na1+1))/((n1+2)^2*(n1+3));
-        tbl.dvar(trind) = ...
-          ((na1+na2+1)*(n1-na1+n2-na2+1))/((n1+n2+2)^2*(n1+n2+3)) - tbl.var1(trind);
+        tbl.invvar1(trind) = 1/(((na1+1)*(n1-na1+1))/((n1+2)^2*(n1+3)));
+        tbl.dinvvar(trind) = ...
+          1/(((na1+na2+1)*(n1-na1+n2-na2+1))/((n1+n2+2)^2*(n1+n2+3))) - tbl.invvar1(trind);
         tbl.negao(trind) = 1-betaOverlap(na1+1,n1-na1+1,na1+na2+1,n1-na1+n2-na2+1);
         tbl.negll2(trind) = -(na2*log(pp1)+(n2-na2)*log(1-pp1)); 
-        tbl.adppxvar1(trind) = tbl.adpp(trind)*tbl.var1(trind);
+        tbl.adppxinvvar1(trind) = tbl.adpp(trind)*tbl.invvar1(trind);
       end
     end
   end
