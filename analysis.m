@@ -114,8 +114,80 @@ figure; % distribution of dvar: in most cases variance decreases (more confident
 for ind1 = 1:3
   for ind2 = 1:3
     n1 = ns(ind1); n2 = ns(ind2); subplot(3,3,(ind1-1)*3+ind2);
-    histogram(tbl.dvar(tbl.n1==n1 & tbl.n2==n2),-0.04:0.0025:0.01); 
+    histogram(tbl.dvar(tbl.n1==n1 & tbl.n2==n2),-0.04:0.0025:0.01,'orientation','horizontal'); 
     ylabel('number of sequences');xlabel('delta variance')
+    title(sprintf('%d then %d',n1,n2));
+  end
+end
+histedges = [0,0.07,0.7;...
+  0,0.06,0.6;...
+  -1,0.2,1;...
+  -0.04,0.0025,0.01;...
+  0,0.1,1;...
+  -25,2.5,0];
+for vind = 1:numel(rankvars)
+  figure; % distribution of dvar: in most cases variance decreases (more confident)
+  for ind1 = 1:3
+    for ind2 = 1:3
+      n1 = ns(ind1); n2 = ns(ind2); subplot(3,3,(ind1-1)*3+ind2);
+      histogram(tbl{tbl.n1==n1 & tbl.n2==n2,rankvars{vind}},...
+        linspace(histedges(vind,1),histedges(vind,3),15)); 
+      ylabel('number of sequences');xlabel(rankvars{vind})
+      title(sprintf('%d then %d',n1,n2));
+    end
+  end
+end
+
+% get rank or zscore (but they don't look normal) from distribution of parameters
+rankvars = {'adp','adpp','de','dvar','ao','ll2'};
+rankvarinds = [6,8,10,12,13,15];
+tblrank = table('Size',[height(tbl), numel(rankvars)],...
+  'VariableTypes',repmat({'double'},1,numel(rankvars)),...
+  'variablenames',rankvars);
+for n1 = [3,6,9]
+  for n2 = [3,6,9]
+    trinds = find(tbl.n1==n1&tbl.n2==n2);
+    for vind = 1:numel(rankvars)
+      c = unique(tbl{tbl.n1==n1&tbl.n2==n2,rankvars{vind}});
+      for trind = trinds(:)'
+        tblrank{trind,vind} = find(c==tbl{trind,rankvars{vind}},1);
+      end
+    end
+  end
+end
+tblzscore = table('Size',[height(tbl), numel(rankvars)],...
+  'VariableTypes',repmat({'double'},1,numel(rankvars)),...
+  'variablenames',rankvars);
+for n1 = [3,6,9]
+  for n2 = [3,6,9]
+    trinds = find(tbl.n1==n1&tbl.n2==n2);
+    for vind = 1:numel(rankvars)
+      tblzscore{trinds,vind} = zscore(tbl{trinds,rankvars{vind}},1);
+    end
+  end
+end
+%
+figure; % compare distributions of adpp, dvar, and ll2
+for trind = 1:height(tbl)
+  ind1 = tbl.n1(trind)/3; ind2 = tbl.n2(trind)/3; subplot(3,3,(ind1-1)*3+ind2);
+  hold on; plot([1 2 3],[tblrank.adpp(trind),tblrank.dvar(trind),tblrank.ll2(trind)],'o-');
+end
+for ind1 = 1:3
+  for ind2 = 1:3
+    n1 = ns(ind1); n2 = ns(ind2); subplot(3,3,(ind1-1)*3+ind2); 
+    ylabel('rank (small to large)');xlabel('parameters');xticks([1 2 3]);xticklabels({'adpp','dvar','ll2'});
+    title(sprintf('%d then %d',n1,n2));
+  end
+end
+figure; % compare distributions of adpp, dvar, and ll2
+for trind = 1:height(tbl)
+  ind1 = tbl.n1(trind)/3; ind2 = tbl.n2(trind)/3; subplot(3,3,(ind1-1)*3+ind2);
+  hold on; plot([1 2 3],[tblzscore.adpp(trind),tblzscore.dvar(trind),tblzscore.ll2(trind)],'o-');
+end
+for ind1 = 1:3
+  for ind2 = 1:3
+    n1 = ns(ind1); n2 = ns(ind2); subplot(3,3,(ind1-1)*3+ind2); 
+    ylabel('z score');xlabel('parameters');xticks([1 2 3]);xticklabels({'adpp','dvar','ll2'});
     title(sprintf('%d then %d',n1,n2));
   end
 end
