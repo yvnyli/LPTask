@@ -58,14 +58,16 @@
 
 % p and e are frequentist, pp and ll2 are with prior of 1 and 1
 % var and ao are also of course using Bayesian estimates
-varNames = {'n1','n2','na1','na2','p1','adp','pp1','adpp','e1','de',...
-  'var1','dvar','ao','ll2'};
-tbl = table('Size',[16+28*2+40*2+49+70*2+100, numel(varNames)],...
+% simulation
+varNames = {'n1','n2','na1','na2','p1','adp','pp1','adpp',...
+  'var1','dvar','negao','negll2','adppxvar1'};
+tbl = table('Size',[(4+1)^2+(8+1)^2+(4+1)*(8+1)*2, numel(varNames)],...
   'VariableTypes',repmat({'double'},1,numel(varNames)),...
   'variablenames',varNames);
+ns = [4,8];
 trind = 0;
-for n1 = [3,6,9]
-  for n2 = [3,6,9]
+for n1 = ns(:)'
+  for n2 = ns(:)'
     for na1 = 0:n1
       for na2 = 0:n2
         trind = trind + 1;
@@ -76,21 +78,42 @@ for n1 = [3,6,9]
         pp1 = (na1+1)/(n1+2);
         tbl.pp1(trind) = pp1; 
         tbl.adpp(trind) = abs((na1+na2+1)/(n1+n2+2)-pp1);
-        tbl.e1(trind) = -p1*log2(p1)-(1-p1)*log2(1-p1);
-        if isnan(tbl.e1(trind)); tbl.e1(trind)=0; end
-        e2 = -p2*log2(p2)-(1-p2)*log2(1-p2);
-        if isnan(e2); e2=0; end
-        tbl.de(trind) = e2 - tbl.e1(trind);
+%         tbl.e1(trind) = -p1*log2(p1)-(1-p1)*log2(1-p1);
+%         if isnan(tbl.e1(trind)); tbl.e1(trind)=0; end
+%         e2 = -p2*log2(p2)-(1-p2)*log2(1-p2);
+%         if isnan(e2); e2=0; end
+%         tbl.de(trind) = e2 - tbl.e1(trind);
         tbl.var1(trind) = ((na1+1)*(n1-na1+1))/((n1+2)^2*(n1+3));
         tbl.dvar(trind) = ...
           ((na1+na2+1)*(n1-na1+n2-na2+1))/((n1+n2+2)^2*(n1+n2+3)) - tbl.var1(trind);
-        tbl.ao(trind) = betaOverlap(na1+1,n1-na1+1,na1+na2+1,n1-na1+n2-na2+1);
-        tbl.ll2(trind) = na2*log(pp1)+(n2-na2)*log(1-pp1); 
+        tbl.negao(trind) = 1-betaOverlap(na1+1,n1-na1+1,na1+na2+1,n1-na1+n2-na2+1);
+        tbl.negll2(trind) = -(na2*log(pp1)+(n2-na2)*log(1-pp1)); 
+        tbl.adppxvar1(trind) = tbl.adpp(trind)*tbl.var1(trind);
       end
     end
   end
 end
 
+%%%parameter correlations
+
+ns = [4,8];
+
+for n1 = ns(:)'
+    for n2 = ns(:)'
+        figure;
+        for vind1 = 5:width(tbl)
+            for vind2 = vind1:width(tbl)
+                subplot(width(tbl)-4,width(tbl)-4,...
+                    (width(tbl)-4)*(vind1-5)+vind2-4);
+                scatter(tbl{tbl.n1==n1&tbl.n2==n2,vind2},...
+                    tbl{tbl.n1==n1&tbl.n2==n2,vind1},10);
+                ylabel(tbl.Properties.VariableNames{vind1});
+                xlabel(tbl.Properties.VariableNames{vind2});
+                sgtitle(sprintf('%d then %d',n1,n2))
+            end
+        end
+    end
+end
 
 %% range for each of the parameters
 figure;scatter(tbl.ao,tbl.ll2,[],tbl.de);xlabel('area overlap');ylabel('log likelihood 2');title('colored by delta entropy');colorbar;colormap(viridis(100));
