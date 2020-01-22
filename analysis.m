@@ -127,7 +127,15 @@ b_eg1 = b_eg1 + rand(size(b_eg1))*std(b_eg1);
 tbl.b_eg1 = b_eg1;
 mdl = fitlm(tbl)
 'TODOTODOTODOTODO
-
+% notes from 1/22
+%  variance is not intuitive for confidence; confidence feels like n
+%  boredom ~ 1, 1st Est, n1, n2, trialNumber(timeOnTask), surprise, liking
+%  let's just randomly sample sequences, don't worry about cherry picking
+%  trials
+%  6-10 then 6-10
+%  2 valences
+%  parameter recovery: plot actual coeffs against recovered coeffs, measure
+%  slop, r^2, etc
 %% range for each of the parameters
 figure;scatter(tbl.ao,tbl.ll2,[],tbl.de);xlabel('area overlap');ylabel('log likelihood 2');title('colored by delta entropy');colorbar;colormap(viridis(100));
 figure;scatter(tbl.ao,tbl.ll2,[],tbl.dvar);xlabel('area overlap');ylabel('log likelihood 2');title('colored by delta variance');colorbar;colormap(viridis(100));
