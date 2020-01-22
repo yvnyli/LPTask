@@ -9,7 +9,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%
 %Boredom ~ b0, dConfidence, abs(dEstimate), conf1*abs(dEstimate), 
-%          dEstimate, liking, n1, n2, est1, conf1, entropy1, dentropy
+%          dEstimate, liking, n1, n2, est1, conf1
 
 % surprise is a function of confidence1 and change in estimate
 %   in the model, it can maybe be 1. the area of overlap between 1st and
@@ -80,7 +80,7 @@ end
 %%%parameter correlations
 
 ns = [4,8];
-
+varnames = {'1st Est','abs d Est','1st inverse Var.','d inverse Var.','1-area','-logLikelihood','1/var x dEst'};
 for n1 = ns(:)'
     for n2 = ns(:)'
         figure;
@@ -90,13 +90,43 @@ for n1 = ns(:)'
                     (width(tbl)-4)*(vind1-5)+vind2-4);
                 scatter(tbl{tbl.n1==n1&tbl.n2==n2,vind2},...
                     tbl{tbl.n1==n1&tbl.n2==n2,vind1},10);
-                ylabel(tbl.Properties.VariableNames{vind1});
-                xlabel(tbl.Properties.VariableNames{vind2});
+                ylabel(varnames{vind1-4});
+                xlabel(varnames{vind2-4});
                 sgtitle(sprintf('%d then %d',n1,n2))
             end
         end
     end
 end
+
+% surprise metrics only
+ns = [4,8];
+varnames = {'1-area','logLikelihood','1/var x dEst'};
+for n1 = ns(:)'
+    for n2 = ns(:)'
+        figure;
+        for vind1 = 1:3
+            for vind2 = 1:3
+                subplot(3,3,...
+                    (3)*(vind1-1)+vind2);
+                scatter(tbl{tbl.n1==n1&tbl.n2==n2,vind2+8},...
+                    tbl{tbl.n1==n1&tbl.n2==n2,vind1+10},8);
+                ylabel(varnames{vind1});
+                xlabel(varnames{vind2});
+                sgtitle(sprintf('%d then %d',n1,n2))
+            end
+        end
+    end
+end
+
+
+%%%model recovery
+%Boredom ~ b0, dConfidence, abs(dEstimate), conf1*abs(dEstimate), 
+%          liking, n1, n2, est1, conf1
+b_eg1 = 5 + tbl.dinvvar - (tbl.n1+tbl.n2);
+b_eg1 = b_eg1 + rand(size(b_eg1))*std(b_eg1);
+tbl.b_eg1 = b_eg1;
+mdl = fitlm(tbl)
+'TODOTODOTODOTODO
 
 %% range for each of the parameters
 figure;scatter(tbl.ao,tbl.ll2,[],tbl.de);xlabel('area overlap');ylabel('log likelihood 2');title('colored by delta entropy');colorbar;colormap(viridis(100));
