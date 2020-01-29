@@ -1,74 +1,136 @@
 % variance (=???) vs confidence (=probability of decision being correct)
 
-% confidence: e.g. given 3H1T, calculate probability of it coming from box
-% of each mix of 100, normalize, the normalized prob from the mix of the
-% decision (for example, the Bayesian decision or the MLE) is the
-% confidence (meaning, it doesn't matter how you got to the decision, the
-% confidence should be the same)
+% confidence: posterior probability (only applies to Bayesian estimates)
 
 
-% variance: well i used the formula (meaning it only applies to Bayesian
+% variance: well i used the formula (only applies to Bayesian
 % estimates)
 
-% from the shape of the bottom two curves (confidence of bayesian estimates
-% and inverse variance of bayesian posterior), i'm convinced that variance
-% measures probability of being correct as well
+% from the curves I would use confidence which is the same as
+% mybetaposterior but in log space to compute the posterior probability
+% which is by definition the probability of the decision being correct
 
 
 n = 20;
 cs = NaN(1,n+1);
 for na = 0:n
-  cs(na+1) = confidence(n,na,na/n,10000);
+  cs(na+1) = betabinomialpmf(1+na,1+n-na,100,round(na/n*100));
 end
 csbayes = NaN(1,n+1);
+csbayes2 = NaN(1,n+1);
+csbayes3 = NaN(1,n+1);
 invvsbayes = NaN(1,n+1);
 for na = 0:n
-  csbayes(na+1) = confidence(n,na,(na+1)/(n+2),100);
-  invvsbayes(na+1) = 1/(((na+1)*(n-na+1))/((n+2)^2*(n+3)));
+  csbayes(na+1) = confidence(n,na,na/n,100);
+  csbayes2(na+1) = betapdf(na/n,na+1,n-na+1);
+  pmf = mybetaposterior(n,na,100);
+  csbayes3(na+1) = pmf(round(na/n*100)+1);
+  invvsbayes(na+1) = 1 / ( ((na+1)*(n-na+1)) / ((n+2)^2*(n+3)) );
 end
-figure;subplot(3,1,1);plot(cs);title('cs');
-subplot(3,1,2);plot(csbayes);title('csbayes');
-subplot(3,1,3);plot(invvsbayes);title('invvsbayes');
+figure;subplot(5,1,1);plot(cs);title('betabinomialpmf of mode');
+xlim([1 21]);ylim([min(cs) max(cs)]);
+subplot(5,1,2);plot(csbayes);title('confidence of mode');
+xlim([1 21]);ylim([min(csbayes) max(csbayes)]);
+subplot(5,1,3);plot(csbayes2);title('betapdf of mode');
+xlim([1 21]);ylim([min(csbayes2) max(csbayes2)]);
+subplot(5,1,4);plot(csbayes3);title('mybetaposterior of mode');
+xlim([1 21]);ylim([min(csbayes3) max(csbayes3)]);
+subplot(5,1,5);plot(invvsbayes);title('invvsbayes');
+xlim([1 21]);ylim([min(invvsbayes) max(invvsbayes)]);
+conftbl = table(cs',csbayes',csbayes2',csbayes3',invvsbayes')
+%%
+ns = [10,20,30,40,50,60,70,80,90];
+cs = NaN(1,9);
+for n = ns(:)'
+  na = n/2;
+  cs(n/10) = betabinomialpmf(1+na,1+n-na,100,round(na/n*100));
+end
+csbayes = NaN(1,9);
+csbayes2 = NaN(1,9);
+csbayes3 = NaN(1,9);
+invvsbayes = NaN(1,9);
+for n = ns(:)'
+  na = n/2;
+  csbayes(n/10) = confidence(n,na,na/n,100);
+  csbayes2(n/10) = betapdf(na/n,na+1,n-na+1);
+  pmf = mybetaposterior(n,na,100);
+  csbayes3(n/10) = pmf(round(na/n*100)+1);
+  invvsbayes(n/10) = 1 / ( ((na+1)*(n-na+1)) / ((n+2)^2*(n+3)) );
+end
+figure;subplot(5,1,1);plot(cs);title('betabinomialpmf of mode');
+xlim([1 9]);ylim([min(cs) max(cs)]);
+subplot(5,1,2);plot(csbayes);title('confidence of mode');
+xlim([1 9]);ylim([min(csbayes) max(csbayes)]);
+subplot(5,1,3);plot(csbayes2);title('betapdf of mode');
+xlim([1 9]);ylim([min(csbayes2) max(csbayes2)]);
+subplot(5,1,4);plot(csbayes3);title('mybetaposterior of mode');
+xlim([1 9]);ylim([min(csbayes3) max(csbayes3)]);
+subplot(5,1,5);plot(invvsbayes);title('invvsbayes');
+xlim([1 9]);ylim([min(invvsbayes) max(invvsbayes)]);
+conftbl2 = table(cs',csbayes',csbayes2',csbayes3',invvsbayes')
 %%
 function c = confidence(n,na,p,total)
+% calculate confidence as the posterior probability
+% n: number of samples
+% na: number of a's
+% p: the probability will be of the estimate P(a) = p
+% total: total number of cards in box (i.e. this is a discrete beta)
 if isempty(total)
   total = 100;
 end
 p = round(p * total)/total;
 xs = NaN(1,total+1);
-% work in log space, final answer = exp( logpprob - normalizer )
-% where normalizer = x* + log(sum_i(exp(x_i)))
-% where x_i = na * log(p_i) + (n-na) * log(1-p_i) and x* = max(xs)
+% assume flat prior, meaning always use the total number of observations
+% (1st + 2nd) to calculate confidence
+
+% work in log space
+logprior = log(1/(total+1));
 if (p==0 && na==0) || (p==1 && na==n) % special case where we have 0*-Inf
-  logpprob = 0;
+  logpprob = log(1) + logprior;
 else
-  logpprob = na * log(p) + (n-na) * log(1-p);
+  logpprob = na * log(p) + (n-na) * log(1-p) + logprior;
 end
 for ind = 0:total
   p = ind/total;
   if (p==0 && na==0) || (p==1 && na==n) % special case where we have 0*-Inf
-    xs(ind+1) = 0;
+    xs(ind+1) = log(1) + logprior;
   else
-    xs(ind+1) = na * log(p) + (n-na) * log(1-p);
+    xs(ind+1) = na * log(p) + (n-na) * log(1-p) + logprior;
   end
 end
 xmax = max(xs);
 normalizer = xmax + log(sum(exp(xs-xmax)));
-c = exp(logpprob-normalizer) * total;
+c = exp(logpprob-normalizer);
+
 end
 
-% function c = confi(n,na,p,total)
-% % i wonder if i need logsumexp at all
-% if isempty(total)
-%   total = 100;
-% end
-% p = round(p * total)/total;
-% pprob = p^na * (1-p)^(n-na);
-% normalizer = 0;
-% for ind = 0:total
-%   p = ind/total;
-%   % if p=0 (p=1) then only if na=0 (na=n), prob is 1; otherwise prob is 0
-%   normalizer = normalizer + p^na * (1-p)^(n-na);
-% end
-% c = pprob / normalizer;
-% end
+function pmf = mybetaposterior(n,na,total)
+pmf = NaN(1,total+1);
+for ind = 0:total
+  p = ind/total;
+  pmf(ind+1) = p^na * (1-p)^(n-na);
+end
+pmf = pmf / sum(pmf);
+end
+
+
+function p = betabinomialpmf(a,b,n,k)
+% the discrete version of beta distribution
+p = nchoosek(n,k)*beta(k+a,n-k+b)/beta(a,b);
+end
+
+function c = confi(n,na,p,total)
+% i wonder if i need logsumexp at all
+if isempty(total)
+  total = 100;
+end
+p = round(p * total)/total;
+pprob = p^na * (1-p)^(n-na) * 1 / (total+1);
+normalizer = 0;
+for ind = 0:total
+  p = ind/total;
+  % if p=0 (p=1) then only if na=0 (na=n), prob is 1; otherwise prob is 0
+  normalizer = normalizer + p^na * (1-p)^(n-na) * 1 / (total+1);
+end
+c = pprob / normalizer;
+end
