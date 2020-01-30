@@ -119,14 +119,96 @@ for n1 = ns(:)'
 end
 
 
-%%%model recovery
-%Boredom ~ b0, dConfidence, abs(dEstimate), conf1*abs(dEstimate), 
-%          liking, n1, n2, est1, conf1
-b_eg1 = 5 + tbl.dinvvar - (tbl.n1+tbl.n2);
-b_eg1 = b_eg1 + rand(size(b_eg1))*std(b_eg1);
-tbl.b_eg1 = b_eg1;
-mdl = fitlm(tbl)
-'TODOTODOTODOTODO
+%% %model recovery
+%Boredom ~ b0, EST1, Surprize, Liking, n1, n2, trialNumber(timeontask) 
+% EST1: p1 or pp1
+% Surprise: adp, adpp, invvar1, dinvvar, negao, negll2, adppxinvvar1
+% 14 combinations
+models = cell(30,11,15);
+
+% make a table of 60 trials
+lmtbl = tbl(1:60,:); lmtbl.na1=[]; lmtbl.na2=[];
+paramCombos = [1,1,0,0,0,0,0,0,0,0,0;...
+               1,1,1,1,0,0,0,0,0,0,0;...
+               1,1,1,0,0,1,0,0,0,0,0;...
+               1,1,1,0,0,0,1,0,0,0,0;...
+               1,1,1,0,0,0,0,1,0,0,0;...
+               1,1,1,0,0,0,0,0,1,0,0;...
+               1,1,1,0,0,0,0,0,0,1,0;...
+               1,1,1,0,0,0,0,0,0,0,1;...
+               1,1,0,1,1,0,0,0,0,0,0;...
+               1,1,0,0,1,1,0,0,0,0,0;...
+               1,1,0,0,1,0,1,0,0,0,0;...
+               1,1,0,0,1,0,0,1,0,0,0;...
+               1,1,0,0,1,0,0,0,1,0,0;...
+               1,1,0,0,1,0,0,0,0,1,0;...
+               1,1,0,0,1,0,0,0,0,0,1];
+               
+% test if a coefficient of 1 for each parameter can be recovered
+for sind = 1:30 % subject ind
+  for trind = 1:60 % trial ind
+    lmtbl.n1(trind) = randi([6,10],1);
+    lmtbl.n2(trind) = randi([6,10],1);
+    na1 = randi([0,lmtbl.n1(trind)],1);
+    lmtbl.p1(trind) = na1/lmtbl.n1(trind);
+    na2 = randi([0,lmtbl.n2(trind)],1);
+    lmtbl.adp(trind) = abs(na2/lmtbl.n2(trind) - lmtbl.p1(trind));
+    lmtbl.pp1(trind) = (na1+1)/(lmtbl.n1(trind)+2);
+    lmtbl.adpp(trind) = abs((1+na2)/(2+lmtbl.n2(trind)) - lmtbl.p1(trind));
+    lmtbl.invvar1(trind) = 1/(((na1+1)*(lmtbl.n1(trind)-na1+1))/...
+      ((lmtbl.n1(trind)+2)^2*(lmtbl.n1(trind)+3)));
+    lmtbl.dinvvar(trind) = 1/(((na1+na2+1)*(lmtbl.n1(trind)-na1+lmtbl.n2(trind)-na2+1))/...
+      ((lmtbl.n1(trind)+lmtbl.n2(trind)+2)^2*(lmtbl.n1(trind)+lmtbl.n2(trind)+3))) - lmtbl.invvar1(trind);
+    lmtbl.negao(trind) = 1-betaOverlap(na1+1,lmtbl.n1(trind)-na1+1,na1+na2+1,...
+      lmtbl.n1(trind)-na1+lmtbl.n2(trind)-na2+1);
+    lmtbl.negll2(trind) = -(na2*log(pp1)+(lmtbl.n2(trind)-na2)*log(1-pp1)); 
+    lmtbl.adppxinvvar1(trind) = lmtbl.adpp(trind)*lmtbl.invvar1(trind);
+  end
+  for pind = 1:11 % z-score each parameter over all trials for each subject
+    lmtbl{:,pind} = (lmtbl{:,pind} - mean(lmtbl{:,pind})) / std(lmtbl{:,pind});
+  end
+  % fit one model as if the subject cares about 1 of each param at a time
+  for pind = 1:11
+    Y = 1 + 1 * lmtbl{:,pind};
+    Y = Y + randn(size(Y))*0.5;
+    lmtbl.Y = Y;
+    for pcind = 1:15
+      mdl = fitlm(lmtbl(:,logical([paramCombos(pcind,:),1])));
+    %   plot(mdl)
+      models{sind,pind,pcind} = mdl;
+    end
+  end
+end
+%%
+clc
+pind = 11;
+% pcind = 1;
+for pcind = 1:15
+meanCoeff = 0;
+isIncluded = paramCombos(pcind,pind);
+sigCounter = table('size',[height(models{1,pind,pcind}.Coefficients),1],...
+  'variabletypes',{'double'},'variablenames',{'sigCount'},'rownames',...
+  models{1,pind,pcind}.Coefficients.Properties.RowNames);
+sigCounter.sigCount = zeros([height(sigCounter),1]);
+for sind = 1:30
+%   disp(models{sind,pind,pcind})
+  if isIncluded
+    meanCoeff = meanCoeff + ...
+      models{sind,pind,pcind}.Coefficients{lmtbl.Properties.VariableNames{pind},'Estimate'};
+  end
+  for tind = 1:height(sigCounter)
+    sigCounter{tind,1} = sigCounter{tind,1} + double(...
+      models{sind,pind,pcind}.Coefficients{tind,4}<0.05);
+  end
+end
+meanCoeff = meanCoeff / 30; 
+if isIncluded
+  fprintf('\n\n\n\nMean coefficient of %s = %.3f\n\n',lmtbl.Properties.VariableNames{pind},meanCoeff);
+else
+  fprintf('\n\n\n\n %s is not in the model\n\n',lmtbl.Properties.VariableNames{pind});
+end
+disp(sigCounter);
+end
 % notes from 1/22
 %  variance is not intuitive for confidence; confidence feels like n
 %  boredom ~ 1, 1st Est, n1, n2, trialNumber(timeOnTask), surprise, liking
@@ -238,6 +320,57 @@ end
 %% surprise as area of overlap vs surprise as likelihood of 2nd given p1
 a1 = 1; b1 = 10; a2 = 10; b2 = 1;
 ao = betaOverlap(a1,b1,a2,b2)
+%% test cases for surprise
+
+% betaKL(11,11,1,1)/20 % should be less surprising than
+% betaKL(11,11,6,6)/10 % failed
+% 
+% betaKL(11,11,6,6)/10 % should be less surprising than
+% betaKL(16,6,6,6)/10 % success
+% 
+% betaKL(11,11,6,6)/10 % should be as surprising as or slightly more
+% betaKL(21,21,6,6)/20 % failed
+% 
+% betaKL(6,16,1,11)/10 % should be more surprising than
+% betaKL(1,21,1,11)/10 % success
+
+% 1-betaOverlap(11,11,1,1) % should be less surprising than
+% 1-betaOverlap(11,11,6,6) % failed
+% 
+% 1-betaOverlap(11,11,6,6) % should be less surprising than
+% 1-betaOverlap(16,6,6,6) % success
+% 
+% 1-betaOverlap(11,11,6,6) % should be as surprising as or slightly more
+% 1-betaOverlap(21,21,6,6) % failed
+% 
+% 1-betaOverlap(6,16,1,11) % should be more surprising than
+% 1-betaOverlap(1,21,1,11) % success
+
+% betaNegativeLogLikelihood(1,1,11,11) % should be less surprising than
+% betaNegativeLogLikelihood(6,6,11,11) % failed
+% 
+% betaNegativeLogLikelihood(6,6,11,11) % should be less surprising than
+% betaNegativeLogLikelihood(6,6,16,6) % success
+% 
+% betaNegativeLogLikelihood(6,6,11,11) % should be as surprising as or slightly more
+% betaNegativeLogLikelihood(6,6,21,21) % failed
+% 
+% betaNegativeLogLikelihood(1,11,6,16) % should be more surprising than
+% betaNegativeLogLikelihood(1,11,1,21) % success
+
+abs(11/22-1/2)*betaInvVar(1,1) % should be less surprising than
+abs(11/22-6/12)*betaInvVar(6,6) % failed: they are both 0
+
+abs(11/22-6/12)*betaInvVar(6,6) % should be less surprising than
+abs(16/22-6/12)*betaInvVar(6,6) % success
+
+abs(11/22-6/12)*betaInvVar(6,6) % should be as surprising as or slightly more
+abs(21/42-6/12)*betaInvVar(6,6) % success
+
+abs(6/22-1/12)*betaInvVar(1,11) % should be more surprising than
+abs(1/22-1/12)*betaInvVar(1,11) % success
+
+
 %%
 % correlations: 
 %  1st/2nd n and acc of 1st/2nd est,
@@ -431,4 +564,54 @@ plot(mdl);legend('off');
 function ao = betaOverlap(a1,b1,a2,b2)
 overlap = @(x) min(betapdf(x,a1,b1),betapdf(x,a2,b2));
 ao = integral(overlap,0,1);
+end
+function negll2 = betaNegativeLogLikelihood(a1,b1,a2,b2)
+negll2 = -log(betabinomialpmf(a1,b1,a2+b2-a1-b1,a2-a1));
+end
+function p = betabinomialpmf(a,b,n,k)
+% the likelihood of observing k out of n samples given a beta distribution
+p = nchoosek(n,k)*beta(k+a,n-k+b)/beta(a,b);
+end
+function d = betaKL(pa,pb,qa,qb)
+% p is the posterior, q is the prior, d measures the amount of information
+% needed to update belief from q to p
+klintegrand = @(x) betapdf(x,pa,pb) .* ...
+  (log2(betapdf(x,pa,pb)) - log2(betapdf(x,qa,qb)));
+d = integral(klintegrand,0,1);
+end
+function invvar = betaInvVar(a,b)
+invvar = 1 / ((a*b)/((a+b)^2*(a+b+1)));
+end
+function c = betaProbability(n,na,p,total)
+% calculate confidence as the posterior probability
+% n: number of samples
+% na: number of a's
+% p: the probability will be of the estimate P(a) = p
+% total: total number of cards in box (i.e. this is a discrete beta)
+if isempty(total)
+  total = 100;
+end
+p = round(p * total)/total;
+xs = NaN(1,total+1);
+% assume flat prior, meaning always use the total number of observations
+% (1st + 2nd) to calculate confidence
+
+% work in log space
+logprior = log(1/(total+1));
+if (p==0 && na==0) || (p==1 && na==n) % special case where we have 0*-Inf
+  logpprob = log(1) + logprior;
+else
+  logpprob = na * log(p) + (n-na) * log(1-p) + logprior;
+end
+for ind = 0:total
+  p = ind/total;
+  if (p==0 && na==0) || (p==1 && na==n) % special case where we have 0*-Inf
+    xs(ind+1) = log(1) + logprior;
+  else
+    xs(ind+1) = na * log(p) + (n-na) * log(1-p) + logprior;
+  end
+end
+xmax = max(xs);
+normalizer = xmax + log(sum(exp(xs-xmax)));
+c = exp(logpprob-normalizer);
 end

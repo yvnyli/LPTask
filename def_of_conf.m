@@ -6,9 +6,11 @@
 % variance: well i used the formula (only applies to Bayesian
 % estimates)
 
-% from the curves I would use confidence which is the same as
+% from the curves and table I would use confidence which is the same as
 % mybetaposterior but in log space to compute the posterior probability
 % which is by definition the probability of the decision being correct
+% because even though betapdf gives the same (if divide by sampling rate
+% i.e. 100) values, it is different close to 0 or 1
 
 
 n = 20;
@@ -115,7 +117,7 @@ end
 
 
 function p = betabinomialpmf(a,b,n,k)
-% the discrete version of beta distribution
+% the likelihood of observing k out of n samples given a beta distribution
 p = nchoosek(n,k)*beta(k+a,n-k+b)/beta(a,b);
 end
 
